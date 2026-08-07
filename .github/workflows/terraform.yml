@@ -1,14 +1,19 @@
-name: Terraform Validate
+name: Terraform CI/CD
 
 on:
   push:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  terraform:
-    name: Terraform
+  validate:
+    name: Validate Terraform
     runs-on: ubuntu-latest
     container:
       image: hashicorp/terraform:1.8.5
@@ -25,3 +30,55 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate
+
+  plan:
+    name: Plan Terraform
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    container:
+      image: hashicorp/terraform:1.8.5
+    env:
+      AWS_DEFAULT_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      - name: Terraform plan
+        run: terraform plan -out=tfplan -input=false -var="aws_region=${AWS_DEFAULT_REGION}"
+
+  apply:
+    name: Apply Terraform
+    if: github.event_name == 'workflow_dispatch'
+    needs: plan
+    runs-on: ubuntu-latest
+    container:
+      image: hashicorp/terraform:1.8.5
+    env:
+      AWS_DEFAULT_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve -input=false tfplan
