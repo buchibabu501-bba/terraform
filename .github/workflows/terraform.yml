@@ -67,6 +67,7 @@ jobs:
     name: Apply Terraform
     if: github.event_name == 'workflow_dispatch'
     needs: plan
+    environment: production
     runs-on: ubuntu-latest
     container:
       image: hashicorp/terraform:1.8.5
