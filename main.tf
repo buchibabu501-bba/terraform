@@ -64,7 +64,7 @@ data "aws_ami" "amazon_linux_2023" {
 }
 
 resource "aws_security_group" "web_sg" {
-  name        = "terraform-ec2-sg"
+  name_prefix = "terraform-ec2-sg-"
   description = "Allow SSH access to the EC2 instance"
 
   ingress {
@@ -81,6 +81,8 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+
 
 resource "aws_instance" "web" {
   ami                         = data.aws_ami.amazon_linux_2023.id
