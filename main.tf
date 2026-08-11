@@ -43,6 +43,18 @@ variable "allowed_ssh_cidr" {
   default     = "0.0.0.0/0"
 }
 
+variable "cluster" {
+  description = "Cluster/environment name"
+  type        = string
+  default     = "dev"
+}
+
+variable "instance_names" {
+  description = "List of EC2 instance names to create"
+  type        = list(string)
+  default     = []
+}
+
 data "aws_ami" "amazon_linux_2023" {
   most_recent = true
   owners      = ["amazon"]
@@ -65,7 +77,7 @@ data "aws_ami" "amazon_linux_2023" {
 
 resource "aws_security_group" "web_sg" {
   name_prefix = "terraform-ec2-sg-"
-  description = "Allow SSH access to the EC2 instance"
+  description = "Allow SSH access to EC2 instances"
 
   ingress {
     from_port   = 22
@@ -82,9 +94,9 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
-
-
 resource "aws_instance" "web" {
+  for_each = toset(var.instance_names)
+
   ami                         = data.aws_ami.amazon_linux_2023.id
   instance_type               = var.instance_type
   key_name                    = var.key_name
@@ -92,18 +104,19 @@ resource "aws_instance" "web" {
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
 
   tags = {
-    Name = "terraform-github-demo"
+    Name    = each.key
+    Cluster = var.cluster
   }
 }
 
-output "instance_id" {
-  value = aws_instance.web.id
+output "instance_ids" {
+  value = [for i in aws_instance.web : i.id]
 }
 
-output "public_ip" {
-  value = aws_instance.web.public_ip
+output "public_ips" {
+  value = [for i in aws_instance.web : i.public_ip]
 }
 
 output "instance_public_dns" {
-  value = aws_instance.web.public_dns
+  value = [for i in aws_instance.web : i.public_dns]
 }

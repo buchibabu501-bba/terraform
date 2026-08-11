@@ -6,6 +6,11 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+    inputs:
+      cluster_file:
+        description: 'Path to the cluster tfvars file'
+        required: true
+        default: 'cluster/dev.tfvars'
 
 permissions:
   contents: read
@@ -55,7 +60,7 @@ jobs:
         run: terraform init -backend=false
 
       - name: Terraform plan
-        run: terraform plan -out=tfplan -input=false -var="aws_region=${AWS_DEFAULT_REGION}"
+        run: terraform plan -var-file=${{ github.event.inputs.cluster_file }} -out=tfplan -input=false
 
       - name: Upload tfplan
         uses: actions/upload-artifact@v4
