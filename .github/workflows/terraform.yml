@@ -57,7 +57,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
       - name: Terraform init
-        run: terraform init -backend=false
+        run: terraform init -reconfigure
 
       - name: Terraform plan
         run: terraform plan -var-file=${{ github.event.inputs.cluster_file }} -out=tfplan -input=false
@@ -97,7 +97,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
       - name: Terraform init
-        run: terraform init -backend=false
+        run: terraform init -reconfigure
 
       - name: Terraform apply
         run: terraform apply -auto-approve -input=false tfplan
