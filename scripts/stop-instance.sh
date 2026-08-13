@@ -39,12 +39,6 @@ if ! jq -e . "$TMPFILE" >/dev/null 2>&1; then
   exit 1
 fi
 
-# Extract instance ids from root_module and any child_modules
-if [ -n "${INSTANCE_NAME}" ] || [ -n "${CLUSTER}" ]; then
-  IDS=$(jq -r --arg name "${INSTANCE_NAME}" --arg cluster "${CLUSTER}" '
-else
-  IDS=$(jq -r '
-fi
 # strip any leading non-JSON lines (some terraform wrappers print a command line)
 CLEANFILE=$(mktemp)
 START_LINE=$(grep -n -m1 '^[[:space:]]*[{[]' "$TMPFILE" | cut -d: -f1 || true)
