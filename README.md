@@ -4,7 +4,7 @@ This repository contains a minimal Terraform configuration to provision an EC2 i
 
 **Action Items**
 - Try re running tf with existing server which gets state.
-- Add custom AMI instead od default
+- Add custom AMI instead 
 - Figure out OIDC
 
 
