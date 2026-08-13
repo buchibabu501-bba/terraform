@@ -1,0 +1,85 @@
+name: Shutdown on cluster shutdown tfvars
+
+on:
+  push:
+    paths:
+      - 'cluster/*.tfvars'
+
+jobs:
+  shutdown_from_file:
+    name: Shutdown cluster from shutdown tfvars
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine changed tfvars file
+        id: changed
+        run: |
+          set -euo pipefail
+          CHANGED=$(git diff-tree --no-commit-id --name-only -r $GITHUB_SHA | grep -E '^cluster/.+\.tfvars$' | head -n1 || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No cluster tfvars changed on this push." >&2
+            echo "found_file=" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "found_file=$CHANGED" >> $GITHUB_OUTPUT
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.8.5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Install CLI tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq unzip
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -o awscliv2.zip
+          if command -v aws >/dev/null 2>&1; then
+            sudo ./aws/install --update
+          else
+            sudo ./aws/install
+          fi
+          aws --version
+      - name: Install python hcl parser
+        run: |
+          sudo apt-get install -y python3-pip
+          pip3 install python-hcl2
+
+      - name: Terraform init (read state)
+        run: terraform init -reconfigure
+
+      - name: Run shutdown for cluster
+        if: steps.changed.outputs.found_file != ''
+        run: |
+          set -euo pipefail
+          FILE="${{ steps.changed.outputs.found_file }}"
+          CLUSTER_NAME=$(basename "$FILE" .tfvars)
+          echo "Parsing $FILE for instances with state=shutdown or poweroff"
+          INSTANCES=$(python3 - <<'PY'
+import hcl2,sys
+f=open("$FILE")
+data=hcl2.load(f)
+insts=data.get('instances',[])
+matches=[inst['name'] for inst in insts if inst.get('state','active') in ('shutdown','poweroff')]
+print(' '.join(matches))
+PY
+)
+          if [ -z "$INSTANCES" ]; then
+            echo "No instances to stop in $FILE"
+            exit 0
+          fi
+          chmod +x ./scripts/stop-instance.sh
+          for NAME in $INSTANCES; do
+            echo "Stopping $NAME in cluster $CLUSTER_NAME"
+            ./scripts/stop-instance.sh "$NAME" "$CLUSTER_NAME"
+          done

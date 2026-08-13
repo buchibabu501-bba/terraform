@@ -55,6 +55,12 @@ variable "instance_names" {
   default     = []
 }
 
+variable "instances" {
+  description = "List of instance objects. Each object: { name = string, state = string }. If empty, `instance_names` is used with default state 'active'."
+  type = list(object({ name = string, state = string }))
+  default = []
+}
+
 data "aws_ami" "amazon_linux_2023" {
   most_recent = true
   owners      = ["amazon"]
@@ -73,6 +79,11 @@ data "aws_ami" "amazon_linux_2023" {
     name   = "virtualization-type"
     values = ["hvm"]
   }
+}
+
+locals {
+  instances_list = length(var.instances) > 0 ? var.instances : [for n in var.instance_names : { name = n, state = "active" }]
+  active_instances = { for inst in local.instances_list : inst.name => inst if inst.state != "shutdown" }
 }
 
 resource "aws_security_group" "web_sg" {
@@ -95,7 +106,7 @@ resource "aws_security_group" "web_sg" {
 }
 
 resource "aws_instance" "web" {
-  for_each = toset(var.instance_names)
+  for_each = local.active_instances
 
   ami                         = data.aws_ami.amazon_linux_2023.id
   instance_type               = var.instance_type

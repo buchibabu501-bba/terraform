@@ -1,5 +1,5 @@
 cluster    = "dev"
 aws_region = "us-east-1"
-instance_names = [
-  "devpostdb1",
+instances = [
+  { name = "devpostdb1", state = "shutdown" },
 ]
