@@ -82,7 +82,7 @@ data "aws_ami" "amazon_linux_2023" {
 }
 
 locals {
-  instances_list   = length(var.instances) > 0 ? var.instances : [for n in var.instance_names : { name = n, state = "active" }]
+  instances_list   = length(var.instances) > 0 ? [for inst in var.instances : { name = inst.name, state = try(inst.state, "active") }] : [for n in var.instance_names : { name = n, state = "active" }]
   active_instances = { for inst in local.instances_list : inst.name => inst if inst.state != "shutdown" }
 }
 

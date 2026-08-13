@@ -1,3 +1,5 @@
+# disabled: moved to disabled/ to hide from Actions UI
+# Original: Shutdown EC2 Instances
 name: Shutdown EC2 Instances
 
 on:

@@ -1,3 +1,5 @@
+# disabled: moved to disabled/ to hide from Actions UI
+# Original: Terminate EC2 Instances (Terraform destroy)
 name: Terminate EC2 Instances (Terraform destroy)
 
 on:

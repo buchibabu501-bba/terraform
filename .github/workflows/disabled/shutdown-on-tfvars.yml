@@ -1,3 +1,5 @@
+# disabled: moved to disabled/ to hide from Actions UI
+# Original: Shutdown on cluster shutdown tfvars
 name: Shutdown on cluster shutdown tfvars
 
 on:
