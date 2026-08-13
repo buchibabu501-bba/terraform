@@ -40,7 +40,13 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
       - name: Install CLI tools
-        run: sudo apt-get update && sudo apt-get install -y jq awscli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq unzip
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          aws --version
 
       - name: Terraform init (read state)
         run: terraform init -reconfigure
