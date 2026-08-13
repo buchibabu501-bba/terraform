@@ -18,16 +18,49 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
+TMPFILE=$(mktemp)
+TMPERR=$(mktemp)
+cleanup() { rm -f "$TMPFILE" "$TMPERR"; }
+trap cleanup EXIT
+
+if ! terraform show -json >"$TMPFILE" 2>"$TMPERR"; then
+  echo "Failed to run 'terraform show -json' or no backend/state available." >&2
+  echo "terraform show stderr:" >&2
+  sed -n '1,200p' "$TMPERR" >&2 || true
+  echo "terraform show output (first 200 lines):" >&2
+  sed -n '1,200p' "$TMPFILE" >&2 || true
+  exit 1
+fi
+
+# validate JSON
+if ! jq -e . "$TMPFILE" >/dev/null 2>&1; then
+  echo "'terraform show -json' did not produce valid JSON:" >&2
+  sed -n '1,200p' "$TMPFILE" >&2 || true
+  exit 1
+fi
+
+# Extract instance ids from root_module and any child_modules
 if [ -n "${INSTANCE_NAME}" ] || [ -n "${CLUSTER}" ]; then
-  IDS=$(terraform show -json \
-    | jq -r --arg name "${INSTANCE_NAME}" --arg cluster "${CLUSTER}" \
-      '.values.root_module.resources[]
-       | select(.type=="aws_instance")
-       | select((($name=="") or ((.values.tags.Name//"")==$name)) and (($cluster=="") or ((.values.tags.Cluster//"")==$cluster)))
-       | .values.id' \
-    | paste -sd " ")
+  IDS=$(jq -r --arg name "${INSTANCE_NAME}" --arg cluster "${CLUSTER}" '
+    .values
+    | (
+        (.root_module.resources[]? // []),
+        (.root_module.child_modules[]?.resources[]? // [])
+      )
+    | select(.type=="aws_instance")
+    | select((($name=="") or ((.values.tags.Name//"")==$name)) and (($cluster=="") or ((.values.tags.Cluster//"")==$cluster)))
+    | .values.id
+  ' "$TMPFILE" | paste -sd " " -)
 else
-  IDS=$(terraform show -json | jq -r '.values.root_module.resources[] | select(.type=="aws_instance") | .values.id' | paste -sd " ")
+  IDS=$(jq -r '
+    .values
+    | (
+        (.root_module.resources[]? // []),
+        (.root_module.child_modules[]?.resources[]? // [])
+      )
+    | select(.type=="aws_instance")
+    | .values.id
+  ' "$TMPFILE" | paste -sd " " -)
 fi
 
 if [ -z "${IDS}" ]; then
