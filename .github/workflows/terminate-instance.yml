@@ -38,7 +38,14 @@ jobs:
         run: terraform init -reconfigure
 
       - name: Terraform plan destroy
-        run: terraform plan -destroy -var-file=${{ github.event.inputs.cluster_file }} -out=tfplan -input=false
+        run: |
+          set -euo pipefail
+          CLUSTER_FILE="${{ github.event.inputs.cluster_file || '' }}"
+          if [ -n "$CLUSTER_FILE" ]; then
+            terraform plan -destroy -var-file="$CLUSTER_FILE" -out=tfplan -input=false
+          else
+            terraform plan -destroy -out=tfplan -input=false
+          fi
 
       - name: Upload tfplan
         uses: actions/upload-artifact@v4
