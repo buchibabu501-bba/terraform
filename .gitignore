@@ -1,0 +1,10 @@
+.terraform/
+# Local override files
+*.tfstate
+*.tfstate.backup
+.terraform.tfstate
+# Ignore crash logs
+crash.log
+# Ignore editor files
+*.swp
+.DS_Store
